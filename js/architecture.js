@@ -780,24 +780,264 @@
     if (opt.rotY) g.rotation.y = opt.rotY;
     const s = opt.scale || 1;
     g.scale.setScalar(s);
-    YL.box(g, 1.3, 0.9, 1.7, M().stoneDark, 0, 0.45, 0, { cast: true });
-    YL.box(g, 1.0, 0.16, 1.4, M().stoneLight, 0, 0.95, 0);
-    YL.cyl(g, 0.34, 0.42, 0.9, M().stoneLight, 0, 1.45, -0.18, { seg: 8 });
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.48, 10, 8), M().stoneLight);
-    body.scale.set(0.78, 1.05, 1.12); body.position.set(0, 1.55, 0.08); body.castShadow = true; g.add(body);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.38, 10, 8), M().stoneLight);
-    head.position.set(0, 2.05, 0.22); head.castShadow = true; g.add(head);
-    for (let i = 0; i < 9; i++) {
-      const a = i / 9 * Math.PI * 2;
-      const curl = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 5), M().stoneDark);
-      curl.position.set(Math.cos(a) * 0.31, 2.15 + Math.sin(a) * 0.25, 0.16);
-      curl.castShadow = true; g.add(curl);
+
+    const SL = M().stoneLight, SM = M().stone, SD = M().stoneDark;
+
+    function ell(rx, ry, rz, x, y, z, mat, seg) {
+      seg = seg || 14;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(1, seg, Math.max(8, seg - 4)), mat);
+      m.scale.set(rx, ry, rz); m.position.set(x, y, z);
+      m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+    }
+    function limb(a, b, r1, r2, mat) {
+      const va = new THREE.Vector3(a[0], a[1], a[2]);
+      const vb = new THREE.Vector3(b[0], b[1], b[2]);
+      const dir = vb.clone().sub(va);
+      const len = dir.length();
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, len, 10), mat);
+      m.position.copy(va).add(vb).multiplyScalar(0.5);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+    }
+    function curl(x, y, z, a, sc, mat) {
+      // a solid lock with a carved spiral ridge, rather than an open hoop
+      const core = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), mat);
+      core.scale.set(sc * 1.04, sc * 1.04, sc * 0.34);
+      core.position.set(x, y, z); core.rotation.y = a;
+      core.castShadow = true; core.receiveShadow = true; g.add(core);
+      const m = new THREE.Mesh(new THREE.TorusGeometry(sc * 0.68, sc * 0.16, 4, 8, Math.PI * 1.55), mat);
+      m.position.set(x, y, z); m.rotation.y = a;
+      m.castShadow = true; m.receiveShadow = true; g.add(m);
+      return m;
+    }
+    function cone(x, y, z, r, h, mat, rx, rz) {
+      const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), mat);
+      m.position.set(x, y, z); m.rotation.x = rx || 0; m.rotation.z = rz || 0;
+      m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+    }
+    function spike(x, y, z, dx, dy, dz, r, h, mat) {
+      const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), mat);
+      m.position.set(x, y, z);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0),
+        new THREE.Vector3(dx, dy, dz).normalize());
+      m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+    }
+    function paw(x, z, y) {
+      YL.box(g, 0.26, 0.14, 0.34, SL, x, y + 0.07, z, { cast: true });
+      for (let i = -1; i <= 1; i++) {
+        ell(0.055, 0.05, 0.075, x + i * 0.075, y + 0.055, z + 0.18, SL, 10);
+        cone(x + i * 0.075, y + 0.055, z + 0.255, 0.022, 0.075, SD, Math.PI / 2, 0);
+      }
+    }
+
+    // --- carved pedestal ---
+    YL.box(g, 1.4, 0.15, 1.78, SD, 0, 0.075, 0, { cast: true });
+    YL.box(g, 1.16, 0.56, 1.5, SM, 0, 0.43, 0, { cast: true });
+    YL.box(g, 1.26, 0.08, 1.6, SD, 0, 0.73, 0);
+    YL.box(g, 1.32, 0.1, 1.66, SL, 0, 0.79, 0, { cast: true });
+    // recessed panels with shallow incised cloud scrolls
+    for (const sz of [-1, 1]) {
+      YL.box(g, 0.94, 0.32, 0.03, SD, 0, 0.43, sz * 0.755);
+      // light frame strips around the recessed panel
+      YL.box(g, 0.94, 0.025, 0.035, SL, 0, 0.585, sz * 0.765);
+      YL.box(g, 0.94, 0.025, 0.035, SL, 0, 0.275, sz * 0.765);
+      YL.box(g, 0.025, 0.32, 0.035, SL, -0.465, 0.43, sz * 0.765);
+      YL.box(g, 0.025, 0.32, 0.035, SL, 0.465, 0.43, sz * 0.765);
+      const med = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.016, 5, 16), SL);
+      med.position.set(0, 0.43, sz * 0.775); g.add(med);
+      for (const cx of [-0.27, 0.27]) {
+        const sc = new THREE.Mesh(new THREE.TorusGeometry(0.040, 0.012, 4, 12, Math.PI * 1.35), SL);
+        sc.position.set(cx, 0.43, sz * 0.775); g.add(sc);
+      }
     }
     for (const sx of [-1, 1]) {
-      YL.box(g, 0.16, 0.7, 0.2, M().stoneLight, sx * 0.26, 1.12, 0.48, { cast: true });
-      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.26, 5), M().stoneDark);
-      ear.position.set(sx * 0.3, 2.32, 0.18); ear.castShadow = true; g.add(ear);
+      YL.box(g, 0.03, 0.32, 0.96, SD, sx * 0.585, 0.43, 0);
+      YL.box(g, 0.035, 0.025, 0.96, SL, sx * 0.595, 0.585, 0);
+      YL.box(g, 0.035, 0.025, 0.96, SL, sx * 0.595, 0.275, 0);
+      YL.box(g, 0.035, 0.32, 0.025, SL, sx * 0.595, 0.43, -0.475);
+      YL.box(g, 0.035, 0.32, 0.025, SL, sx * 0.595, 0.43, 0.475);
+      const med = new THREE.Mesh(new THREE.TorusGeometry(0.080, 0.015, 5, 16), SL);
+      med.position.set(sx * 0.605, 0.43, 0); med.rotation.y = Math.PI / 2; g.add(med);
     }
+
+    // --- continuous seated torso, lofted rather than built from stacked balls ---
+    (function () {
+      const secs = [
+        { y: 0.88, rx: 0.36, rz: 0.42, cz: -0.05 },
+        { y: 1.05, rx: 0.42, rz: 0.44, cz: -0.06 },
+        { y: 1.25, rx: 0.42, rz: 0.42, cz: -0.03 },
+        { y: 1.50, rx: 0.40, rz: 0.38, cz: 0.02 },
+        { y: 1.72, rx: 0.35, rz: 0.33, cz: 0.07 },
+        { y: 1.90, rx: 0.30, rz: 0.29, cz: 0.11 },
+        { y: 2.03, rx: 0.26, rz: 0.26, cz: 0.13 }
+      ];
+      const seg = 28, pos = [], uv = [], idx = [];
+      for (let s = 0; s < secs.length; s++) {
+        const c = secs[s];
+        for (let i = 0; i <= seg; i++) {
+          const a = i / seg * Math.PI * 2;
+          pos.push(Math.cos(a) * c.rx, c.y, c.cz + Math.sin(a) * c.rz);
+          uv.push(i / seg, s / (secs.length - 1));
+        }
+      }
+      for (let s = 0; s < secs.length - 1; s++) {
+        for (let i = 0; i < seg; i++) {
+          const a = s * (seg + 1) + i, b = a + seg + 1;
+          idx.push(a, b, a + 1, b, b + 1, a + 1);
+        }
+      }
+      // caps
+      const bottom = pos.length / 3;
+      pos.push(0, secs[0].y, secs[0].cz); uv.push(0.5, 0);
+      for (let i = 0; i < seg; i++) idx.push(bottom, i, i + 1);
+      const top = pos.length / 3;
+      const last = (secs.length - 1) * (seg + 1);
+      pos.push(0, secs[secs.length - 1].y, secs[secs.length - 1].cz); uv.push(0.5, 1);
+      for (let i = 0; i < seg; i++) idx.push(top, last + i + 1, last + i);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      geo.setIndex(idx); geo.computeVertexNormals();
+      const body = new THREE.Mesh(geo, SL);
+      body.castShadow = true; body.receiveShadow = true; g.add(body);
+    })();
+    // haunches, shoulders and chest break up the torso silhouette
+    for (const sx of [-1, 1]) {
+      ell(0.16, 0.19, 0.19, sx * 0.24, 1.61, 0.18, SL);
+    }
+    ell(0.33, 0.27, 0.20, 0, 1.55, 0.18, SL);
+    // broad carved chest ruff
+    ell(0.38, 0.28, 0.20, 0, 1.73, 0.25, SM);
+    for (let i = -1; i <= 1; i++) {
+      curl(i * 0.11, 1.58, 0.37, 0.2 * i, 0.055, SM);
+    }
+    ell(0.22, 0.15, 0.12, 0, 1.49, 0.33, SL);
+
+    // --- front legs: left straight, right forward and resting on a ball ---
+    limb([-0.23, 1.60, 0.22], [-0.28, 1.22, 0.38], 0.14, 0.11, SL);
+    limb([-0.28, 1.22, 0.38], [-0.28, 0.94, 0.51], 0.11, 0.10, SL);
+    ell(0.13, 0.13, 0.13, -0.28, 1.22, 0.38, SL, 14);
+    paw(-0.28, 0.52, 0.89);
+    limb([0.23, 1.60, 0.24], [0.30, 1.25, 0.49], 0.14, 0.115, SL);
+    limb([0.30, 1.25, 0.49], [0.30, 0.96, 0.66], 0.115, 0.10, SL);
+    ell(0.13, 0.13, 0.13, 0.30, 1.25, 0.49, SL, 14);
+    paw(0.30, 0.66, 0.89);
+    // rear paws stepping out slightly from under the haunches
+    for (const sx of [-1, 1]) {
+      limb([sx * 0.29, 1.08, -0.26], [sx * 0.36, 0.92, -0.38], 0.12, 0.10, SL);
+      paw(sx * 0.36, -0.40, 0.86);
+    }
+    // embroidered ball beneath the right paw
+    ell(0.15, 0.15, 0.15, 0.30, 0.81, 0.84, SM, 16);
+    for (const rot of [0, Math.PI / 2]) {
+      const band = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.016, 5, 16), SD);
+      band.position.set(0.30, 0.81, 0.84); band.rotation.set(rot, 0, 0); g.add(band);
+    }
+    cone(0.30, 0.70, 0.96, 0.035, 0.12, SD, Math.PI / 2, 0);
+
+    // --- large mane mass behind the head ---
+    ell(0.54, 0.46, 0.34, 0, 2.17, 0.03, SM, 18);
+
+    // --- head: broad, flat and a little angular, like carved stone ---
+    const HX = 0, HY = 2.31, HZ = 0.30;
+    ell(0.36, 0.32, 0.25, HX, HY, HZ, SL);
+    for (const sx of [-1, 1]) {
+      ell(0.14, 0.14, 0.10, sx * 0.20, HY - 0.12, HZ + 0.05, SL);
+      // broad deep socket and large eye
+      ell(0.085, 0.060, 0.030, sx * 0.15, HY + 0.06, HZ + 0.20, SD, 12);
+      ell(0.040, 0.040, 0.024, sx * 0.15, HY + 0.06, HZ + 0.225, M().plaster, 12);
+      ell(0.021, 0.022, 0.012, sx * 0.15, HY + 0.06, HZ + 0.247, SD, 10);
+      ell(0.010, 0.011, 0.008, sx * 0.15, HY + 0.06, HZ + 0.256, SD, 8);
+      // heavy angular brow
+      const brow = YL.box(g, 0.16, 0.045, 0.055, SD, sx * 0.14, HY + 0.15, HZ + 0.17, { cast: true });
+      brow.rotation.z = sx * 0.34;
+      // small ears, half hidden by the mane
+      cone(sx * 0.31, HY + 0.18, HZ - 0.12, 0.060, 0.13, SM, 0, sx * -0.45);
+      cone(sx * 0.31, HY + 0.18, HZ - 0.12, 0.032, 0.08, SD, 0, sx * -0.45);
+    }
+    // nose bridge, broad flat muzzle, whisker pads and flared nose
+    ell(0.07, 0.14, 0.07, 0, HY + 0.04, HZ + 0.11, SL, 14);
+    ell(0.18, 0.105, 0.11, 0, HY - 0.12, HZ + 0.17, SL, 16);
+    for (const sx of [-1, 1]) ell(0.080, 0.060, 0.07, sx * 0.085, HY - 0.15, HZ + 0.23, SL, 12);
+    ell(0.095, 0.055, 0.045, 0, HY - 0.065, HZ + 0.29, SD, 14);
+    for (const sx of [-1, 1]) {
+      ell(0.030, 0.022, 0.016, sx * 0.045, HY - 0.06, HZ + 0.325, SD, 8);
+    }
+    // open mouth: wide dark cavity, lower jaw, fangs and teeth
+    YL.box(g, 0.22, 0.11, 0.06, SD, 0, HY - 0.285, HZ + 0.285);
+    ell(0.18, 0.085, 0.11, 0, HY - 0.355, HZ + 0.245, SL, 14);
+    for (const sx of [-1, 1]) {
+      cone(sx * 0.082, HY - 0.275, HZ + 0.305, 0.026, 0.11, SD, Math.PI, 0);
+      for (let i = 0; i < 2; i++) {
+        YL.box(g, 0.021, 0.032, 0.018, SL, sx * (0.030 + i * 0.038), HY - 0.265, HZ + 0.32);
+      }
+      for (let i = 0; i < 3; i++) {
+        YL.box(g, 0.021, 0.028, 0.018, SL, sx * (0.030 + i * 0.032), HY - 0.375, HZ + 0.29);
+      }
+    }
+    YL.box(g, 0.08, 0.022, 0.08, SD, 0, HY - 0.34, HZ + 0.305, { rx: 0.28 });
+    // short chin curls instead of a hanging beard
+    for (let i = -2; i <= 2; i++) {
+      curl(i * 0.052, HY - 0.44, HZ + 0.14, 0, 0.042, SM);
+    }
+
+    // --- mane locks: overlapping rows on the ruff, pointed tips at the edge ---
+    const rows = [
+      { y: 1.98, r: 0.52, n: 14, sc: 0.110, skip: 0.50 },
+      { y: 2.16, r: 0.50, n: 12, sc: 0.100, skip: 0.42 },
+      { y: 2.34, r: 0.42, n: 10, sc: 0.085, skip: 0.26 },
+      { y: 2.49, r: 0.31, n: 7, sc: 0.072, skip: 0.10 }
+    ];
+    rows.forEach((row, ri) => {
+      for (let i = 0; i < row.n; i++) {
+        const a = i / row.n * Math.PI * 2 + (ri % 2 ? 0.12 : 0);
+        if (Math.cos(a) > row.skip) continue;
+        const wx = Math.sin(a) * row.r;
+        const wz = HZ - 0.18 + Math.cos(a) * row.r;
+        curl(wx, row.y, wz, a, row.sc, ri === 1 || ri === 3 ? SL : SM);
+      }
+    });
+    // radiating pointed locks give the mane a fur-like edge
+    for (let i = 0; i < 14; i++) {
+      const a = i / 14 * Math.PI * 2 + 0.08;
+      if (Math.cos(a) > 0.05) continue;
+      const r = 0.56;
+      spike(Math.sin(a) * r, 1.94, HZ - 0.16 + Math.cos(a) * r,
+        Math.sin(a) * 0.78, -0.62, Math.cos(a) * 0.78, 0.046, 0.24, i % 2 ? SL : SM);
+    }
+    for (const sx of [-1, 1]) {
+      for (let i = 0; i < 4; i++) {
+        spike(sx * (0.47 - i * 0.028), 2.13 - i * 0.11, HZ + 0.02 + i * 0.05,
+          sx * 0.78, -0.60, 0.18, 0.048, 0.26, SM);
+        spike(sx * (0.36 - i * 0.02), 1.98 - i * 0.07, HZ + 0.20 + i * 0.05,
+          sx * 0.64, -0.72, 0.22, 0.040, 0.22, i % 2 ? SL : SM);
+      }
+    }
+    // forehead fringe curls
+    for (const fx of [-0.18, 0, 0.18]) curl(fx, 2.64, HZ + 0.02, 0, 0.055, SL);
+
+    // --- tail curling up behind the haunch ---
+    const tailCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 1.28, -0.48),
+      new THREE.Vector3(0.10, 1.56, -0.67),
+      new THREE.Vector3(0.22, 1.78, -0.69),
+      new THREE.Vector3(0.31, 1.89, -0.53)
+    ]);
+    const tail = new THREE.Mesh(new THREE.TubeGeometry(tailCurve, 16, 0.06, 7, false), SM);
+    tail.castShadow = true; g.add(tail);
+    for (let i = 0; i < 5; i++) {
+      const a = i / 5 * Math.PI * 2;
+      curl(0.31 + Math.sin(a) * 0.09, 1.90 + Math.cos(a) * 0.10, -0.49,
+        a, 0.055, i % 2 ? SL : SM);
+    }
+
+    // --- collar, bells and tassel ---
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.045, 6, 18), SD);
+    collar.position.set(0, 1.92, 0.20); collar.rotation.x = Math.PI / 2; g.add(collar);
+    for (const bx of [-0.19, 0, 0.19]) {
+      ell(0.040, 0.046, 0.038, bx, 1.84, 0.47, SM, 10);
+    }
+
     YL.mergeByMaterial(g);
     return g;
   };
